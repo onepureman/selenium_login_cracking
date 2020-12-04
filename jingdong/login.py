@@ -165,8 +165,8 @@ class Login(object):
         time.sleep(1)
         self.driver.find_element_by_xpath("//a[text()='账户登录']").click()
         time.sleep(1)
-        self.driver.find_element_by_id("loginname").send_keys("18513606786")
-        self.driver.find_element_by_id("nloginpwd").send_keys("jing1995")
+        self.driver.find_element_by_id("loginname").send_keys("")  # 账号
+        self.driver.find_element_by_id("nloginpwd").send_keys("")  # 密码
         time.sleep(1)
         self.driver.find_element_by_xpath("//div[@class='login-btn']/a[@class='btn-img btn-entry']").click()
 
