@@ -1,8 +1,9 @@
 """
-Base_Url: https://passport.jd.com/uc/login
+Base_Url:https://www.17173.com/
 Author: jing
-Modify: 2020/12/4
+Modify:
 """
+
 
 from selenium import webdriver
 import time
@@ -16,30 +17,40 @@ import base64
 import cv2
 import numpy as np
 import random
+import requests
 
 
 class Login(object):
 
-    def __init__(self):
-        self.driver = webdriver.Chrome(executable_path=r'E:\webdriver_\chrome_85.0.4183.83\chromedriver.exe')  #获取chrome浏览器的驱动，并启动Chrome浏览器
-        pass
+    def __init__(self, user, pwd):
+        self.user = user
+        self.pwd = pwd
+        self.base_url = "https://www.17173.com/"
+        # 获取chrome浏览器的驱动，并启动Chrome浏览器
+        self.driver = webdriver.Chrome(executable_path=r"E:\webdriver_\chrome_85.0.4183.83\chromedriver.exe")
 
+    def get_random_float(self, min, max, digits=4):
+
+        return round(random.uniform(min, max), digits)
+
+    # 保存滑动验证的图片
     def recognition(self):
+        # 到 滑动验证的页面
+        """
+        1.网站上滑动验证的逻辑为 每个图滑动三次 自动换图  后期可以设置点击画图，因为同样的图此一次出错，后面也会出错
+        2.目前没有添加换图， 并且后期的比例与初始位置需要根据实际情况设置，目前设置的值 偶尔可以成功 但几率不高
+        3. 并且部分图滑动成功之后 出现智能检测  可以自己设计滑动轨迹 或者修改滑动轨迹，看能否绕过检测，本程序滑动时很大几率被检测到，滑动轨迹还需要设计
+        :return:
+        """
 
-        # 设置等待 使用WebDriverWait方法
-        # div = WebDriverWait(driver, 10, 1).until(EC.presence_of_element_located((By.XPATH, "//div[@class='JDJRV-bigimg']/img"))).get_attribute("src")
-        # print(div)
-
-        r1 = self.driver.find_element_by_xpath("//div[@class='JDJRV-bigimg']/img").get_attribute("src")
-        r1de = base64.b64decode(re.findall(";base64,(.*)", r1)[0])
-        r2 = self.driver.find_element_by_xpath("//div[@class='JDJRV-smallimg']/img").get_attribute("src")
-        r2de = base64.b64decode(re.findall(";base64,(.*)", r2)[0])
-
-        with open("./captcha1.png", "wb") as f:
-            f.write(r1de)
-        with open("./captcha2.png", "wb") as f:
-            f.write(r2de)
-        time.sleep(1)
+        img_src = self.driver.find_element_by_xpath("//div[@class='tc-bg']/img").get_attribute("src")
+        img_src_res = requests.get(img_src)
+        with open("captcha1.png", "wb") as f:
+            f.write(img_src_res.content)
+        tc_jpp = self.driver.find_element_by_xpath("//div[@class='tc-jpp']/img").get_attribute("src")
+        tc_jpp_res = requests.get(tc_jpp)
+        with open("captcha2.png", "wb") as f:
+            f.write(tc_jpp_res.content)
 
         cv2.imwrite('r3.jpg', cv2.imread('captcha1.png', 0))
         cv2.imwrite('r4.jpg', cv2.imread('captcha2.png', 0))
@@ -50,17 +61,8 @@ class Login(object):
         cv2.rectangle(cv2.imread('r3.jpg'), (y + 20, x + 20), (y + 136 - 25, x + 136 - 25), (7, 249, 151), 2)
         print('识别坐标为:', y)
         return y
+        # 滑动轨迹
 
-    def get_random_float(self,min, max, digits=4):
-        """
-        :param min:
-        :param max:
-        :param digits:
-        :return:
-        """
-        return round(random.uniform(min, max), digits)
-
-    # 滑动轨迹
     def _get_tracks(self, distance):
 
         track = []
@@ -109,11 +111,12 @@ class Login(object):
         print("forward_tracks={}, back_tracks={}".format(track, back_tracks))
         return {'forward_tracks': track, 'back_tracks': back_tracks}
 
-    # 开始滑动
+        # 开始滑动
+
     def _slider_action(self, tracks):
 
         # 点击滑块
-        huakuai = self.driver.find_element_by_xpath("//div[@class='JDJRV-slide-inner JDJRV-slide-btn']")
+        huakuai = self.driver.find_element_by_xpath("//div[@class='tc-drag-thumb']")
         ActionChains(self.driver).click_and_hold(on_element=huakuai).perform()
 
         # 正向滑动
@@ -143,50 +146,44 @@ class Login(object):
         ActionChains(self.driver).release().perform()
         time.sleep(0.5)
 
-    def huadong(self):
+    def move(self):
         xx = self.recognition()
-        distance = int(xx / 1.285)
+        distance = int(xx / 4.15) + 90  # 此处应该是计算真实的比例以及初始位置
 
         # 轨迹
         tracks = self._get_tracks(distance)
 
         # 移动滑块
         self._slider_action(tracks)
+        time.sleep(1.2)
 
-        time.sleep(1)
+    def login_(self):
+        self.driver.get(self.base_url)
+        time.sleep(self.get_random_float(0.6, 1))
 
-        if self.driver.current_url == "https://passport.jd.com/uc/login":
-            return False
-        else:
-            return True
+        self.driver.find_element_by_xpath("//a[@data-ui-mark='loginBtn']").click()
+        time.sleep(self.get_random_float(0.6, 1))
 
-    def run(self):
-        self.driver.get("https://passport.jd.com/uc/login")
-        time.sleep(1)
-        self.driver.find_element_by_xpath("//a[text()='账户登录']").click()
-        time.sleep(1)
-        self.driver.find_element_by_id("loginname").send_keys("")  # 账号
-        self.driver.find_element_by_id("nloginpwd").send_keys("")  # 密码
-        time.sleep(1)
-        self.driver.find_element_by_xpath("//div[@class='login-btn']/a[@class='btn-img btn-entry']").click()
+        self.driver.switch_to.frame("nut")
+        self.driver.find_element_by_xpath("//input[@name='email']").send_keys(self.user)
+        time.sleep(self.get_random_float(0.6, 1))
+        self.driver.find_element_by_xpath("//input[@name='password']").send_keys(self.pwd)
 
-        # 开始反复滑动直到成功验证
-        huadong_num = 1
+        self.driver.find_element_by_xpath("//div[@class='gpp-form-bt']/button[text()='登录']").click()
+        time.sleep(self.get_random_float(2, 5))
+        self.driver.switch_to.frame("tcaptcha_iframe")
         while 1:
-            time.sleep(1)
-            if self.huadong():
-                break
+            self.move()
 
-            huadong_num += 1
-
-        print("登陆成功, 成功率为：", 1/huadong_num *100, "%")
-        time.sleep(10)
-
+        time.sleep(20)
         self.driver.close()
 
 
 if __name__ == '__main__':
+    user = ""
+    pwd = "222222"
 
-    login = Login()
-    login.run()
+    login = Login(user, pwd)  # TODO: 输入账号&密码
+    login.login_()
+
 
